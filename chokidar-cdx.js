@@ -30,12 +30,15 @@ const configPath =
 const dryRun = args.has('--dry-run');
 
 function log(message, details = {}) {
+  const reset = '\x1b[0m';
+  const yellow = '\x1b[33m';
+
   const entry = JSON.stringify({
     timestamp: new Date().toISOString(),
     message,
     ...details,
   });
-  console.log(entry);
+  console.log(yellow + entry + reset);
   appendFile(logPath, `${entry}${os.EOL}`).catch(error =>
     console.error(`Could not write log: ${error.message}`),
   );
