@@ -3,7 +3,7 @@ rules:
     enabled: true
     watch:
       path: C:\Users\xq151\Downloads
-      pattern: '*'
+      pattern: 'ContextSearchOptions_*.json'
     events: [add, change]
     debounce: 500
     conditions:
