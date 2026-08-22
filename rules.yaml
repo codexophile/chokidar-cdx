@@ -1,0 +1,20 @@
+rules:
+  - name: markdown-copy
+    enabled: true
+    watch:
+      path: ./watch
+      pattern: '*.md'
+    events: [add, change]
+    debounce: 500
+    conditions:
+      minSizeBytes: 0
+      ignoreInitial: true
+    onError: stop
+    actions:
+      - type: copy
+        destination: './dist/{{filename}}'
+      - parallel:
+          - type: notify
+            message: 'File {{filename}} updated'
+          - type: exec
+            command: 'node --version'

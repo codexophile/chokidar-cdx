@@ -1,9 +1,13 @@
 {
   "dependencies": {
-    "chokidar": "^5.0.0"
+    "chokidar": "^5.0.0",
+    "picomatch": "^4.0.5",
+    "yaml": "^2.9.0"
   },
   "scripts": {
-    "debug": "node --inspect-brk chokidar-cdx.js"
+    "start": "node chokidar-cdx.js",
+    "debug": "node --inspect-brk chokidar-cdx.js",
+    "dry-run": "node chokidar-cdx.js --dry-run"
   },
   "type": "module"
 }
