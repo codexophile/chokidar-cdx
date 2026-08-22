@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { parse } from 'yaml';
 import picomatch from 'picomatch';
+import { stdout } from 'process';
 
 const execFileAsync = promisify(execFile);
 const projectDir = path.dirname(fileURLToPath(import.meta.url));
@@ -213,7 +214,9 @@ async function executeAction(action, context, options) {
       shell: true,
       cwd: projectDir,
     });
-    context.stdout = result.stdout;
+    const stdOut = result.stdout.trim();
+    console.log(stdOut);
+    context.stdout = stdOut;
   } else {
     throw new Error(`Unsupported action type: ${type}`);
   }

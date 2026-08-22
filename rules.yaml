@@ -13,3 +13,5 @@ rules:
     actions:
       - parallel:
           - type: simple-log
+      - type: script
+        path: 'pwsh -NoProfile -File ./contextsearch-helper.ps1 -InputFile "{{filepath}}"'
