@@ -27,7 +27,9 @@ $hasChanges = $LASTEXITCODE -ne 0
 Write-Host "`nHas changes: $hasChanges`n"
 if ($hasChanges) {
   $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-  git commit -m "Auto backup: $timestamp"
+  $CommitMessage = "Auto backup: $timestamp"
+  Write-Host "Committing with message: $CommitMessage" -ForegroundColor DarkGreen
+  git commit -m $CommitMessage
   Invoke-Git-Sync
 }
 Pop-Location
