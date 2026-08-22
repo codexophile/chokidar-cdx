@@ -193,7 +193,8 @@ async function executeAction(action, context, options) {
     });
   } else if (type === 'simple-log') {
     console.log(`
-      Notification:
+      Simple log:
+      -----------
       Rule name: ${options.rule.name}
       Trigger: ${context.event}
       Watch folder: ${path.resolve(options.rule.watch.path)}
