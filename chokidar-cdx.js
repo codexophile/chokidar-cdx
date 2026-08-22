@@ -195,10 +195,10 @@ async function executeAction(action, context, options) {
     console.log(`
       Simple log:
       -----------
-      Rule name: ${options.rule.name}
-      Trigger: ${context.event}
-      Watch folder: ${path.resolve(options.rule.watch.path)}
-      File name: ${context.filename}
+      Rule name    : ${options.rule.name}
+      Trigger      : ${context.event}
+      Watch folder : ${path.resolve(options.rule.watch.path)}
+      File name    : ${context.filename}
     `);
   } else if (type === 'http') {
     const response = await fetch(resolved.url, {
