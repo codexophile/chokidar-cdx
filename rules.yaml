@@ -1,9 +1,9 @@
 rules:
-  - name: markdown-copy
+  - name: test-rule
     enabled: true
     watch:
-      path: ./watch
-      pattern: '*.md'
+      path: C:\Users\xq151\Downloads
+      pattern: '*'
     events: [add, change]
     debounce: 500
     conditions:
@@ -11,10 +11,5 @@ rules:
       ignoreInitial: true
     onError: stop
     actions:
-      - type: copy
-        destination: './dist/{{filename}}'
       - parallel:
-          - type: notify
-            message: 'File {{filename}} updated'
-          - type: exec
-            command: 'node --version'
+          - type: simple-log
