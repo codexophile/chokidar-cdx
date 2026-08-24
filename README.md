@@ -71,20 +71,21 @@ rules:
 
 ### Rule fields
 
-| Field                      | Required | Description                                                                                                                      |
-| -------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                     | Yes      | Unique, descriptive name used in logs and debounce keys.                                                                         |
-| `enabled`                  | No       | Set to `false` to disable a rule. Defaults to enabled. At least one rule must be enabled.                                        |
-| `watch.path`               | Yes      | Directory or path passed to Chokidar. Relative paths are resolved from the process working directory.                            |
-| `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to `watch.path` and the file name.                       |
-| `events`                   | Yes      | One or more of `add`, `change`, `unlink`, `addDir`, or `unlinkDir`.                                                              |
-| `debounce`                 | No       | Delay in milliseconds before the matching rule runs. A later event for the same rule and path resets the timer. Defaults to `0`. |
-| `conditions.minSizeBytes`  | No       | Skip the rule unless the current file is at least this many bytes. This is most useful for `add` and `change` events.            |
-| `conditions.ignoreInitial` | No       | Defaults to `true`, so existing files do not trigger events at startup. Set to `false` to process initial files.                 |
-| `onError`                  | No       | `stop` (default behavior), `continue`, or a retry object. Invalid values fail configuration validation.                          |
-| `actions`                  | Yes      | Ordered action steps. Each step is one action or a `parallel` group.                                                             |
+| Field                      | Required | Description                                                                                                                                                   |
+| -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                     | Yes      | Unique, descriptive name used in logs and debounce keys.                                                                                                      |
+| `enabled`                  | No       | Set to `false` to disable a rule. Defaults to enabled. At least one rule must be enabled.                                                                     |
+| `watch.path`               | Yes      | Directory or path passed to Chokidar. Relative paths are resolved from the process working directory.                                                         |
+| `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to `watch.path` and the file name.                                                    |
+| `watch.subfolders`         | No       | Defaults to `false`, so only the watched directory is monitored. Set to `true` for all nested directories, or use a nonnegative integer for a specific depth. |
+| `events`                   | Yes      | One or more of `add`, `change`, `unlink`, `addDir`, or `unlinkDir`.                                                                                           |
+| `debounce`                 | No       | Delay in milliseconds before the matching rule runs. A later event for the same rule and path resets the timer. Defaults to `0`.                              |
+| `conditions.minSizeBytes`  | No       | Skip the rule unless the current file is at least this many bytes. This is most useful for `add` and `change` events.                                         |
+| `conditions.ignoreInitial` | No       | Defaults to `true`, so existing files do not trigger events at startup. Set to `false` to process initial files.                                              |
+| `onError`                  | No       | `stop` (default behavior), `continue`, or a retry object. Invalid values fail configuration validation.                                                       |
+| `actions`                  | Yes      | Ordered action steps. Each step is one action or a `parallel` group.                                                                                          |
 
-Glob patterns use picomatch syntax. Examples include `*.md` for Markdown files in the watched directory, `**/*.json` for JSON files in nested directories, and `dist/**` for everything below `dist`. Use a regular expression when a glob is not expressive enough:
+Glob patterns use picomatch syntax. Examples include `*.md` for Markdown files in the watched directory, `**/*.json` for JSON files in nested directories, and `dist/**` for everything below `dist`. A pattern does not enable recursive monitoring by itself; set `watch.subfolders` explicitly when nested directories should be watched. Use a regular expression when a glob is not expressive enough:
 
 ```yaml
 watch:
@@ -92,6 +93,16 @@ watch:
   pattern:
     type: regex
     value: '^report-\\d{4}-\\d{2}\\.csv$'
+  subfolders: false
+```
+
+To monitor nested directories, use `subfolders: true` for unlimited depth or `subfolders: 1` to include files one directory below the watched path:
+
+```yaml
+watch:
+  path: ./incoming
+  pattern: '**/*.json'
+  subfolders: true
 ```
 
 ## Templates and action order

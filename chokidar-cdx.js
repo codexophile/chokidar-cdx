@@ -62,6 +62,13 @@ function validateRules(config) {
     required(rule.watch?.path, `Rule ${rule.name} needs watch.path`);
     required(rule.watch?.pattern, `Rule ${rule.name} needs watch.pattern`);
     required(
+      rule.watch?.subfolders === undefined ||
+        rule.watch.subfolders === false ||
+        rule.watch.subfolders === true ||
+        (Number.isInteger(rule.watch.subfolders) && rule.watch.subfolders >= 0),
+      `Rule ${rule.name} has invalid watch.subfolders; use false, true, or a nonnegative integer`,
+    );
+    required(
       Array.isArray(rule.events) && rule.events.length > 0,
       `Rule ${rule.name} needs explicit events`,
     );
@@ -314,8 +321,10 @@ async function main() {
   required(activeRules.length > 0, 'Config contains no enabled rules');
   for (const rule of activeRules) {
     const watchPath = path.resolve(rule.watch.path);
+    const subfolders = rule.watch.subfolders ?? false;
     const watcher = chokidar.watch(watchPath, {
       ignoreInitial: rule.conditions?.ignoreInitial !== false,
+      depth: subfolders === true ? undefined : subfolders,
     });
     for (const event of rule.events)
       watcher.on(event, filePath => scheduleRule(rule, event, filePath));
@@ -323,6 +332,7 @@ async function main() {
       rule: rule.name,
       watchPath,
       pattern: rule.watch.pattern,
+      subfolders,
       events: rule.events,
     });
   }
