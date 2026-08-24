@@ -1,5 +1,5 @@
 rules:
-  - name: test-rule
+  - name: ContextSearch-ext-backup-main
     enabled: true
     watch:
       path: C:\Users\xq151\Downloads
@@ -16,3 +16,21 @@ rules:
         destination: C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
       - type: script
         path: pwsh -NoProfile -File ./contextsearch-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
+
+  - name: ContextSearch-ext-backup-private
+    enabled: true
+    watch:
+      path: C:\Users\xq151\Downloads\#w
+      pattern: 'ContextSearchOptions_*.json'
+    events: [add, change]
+    debounce: 500
+    conditions:
+      minSizeBytes: 0
+      ignoreInitial: true
+    onError: stop
+    actions:
+      - type: simple-log
+      - type: move
+        destination: C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
+      - type: script
+        path: pwsh -NoProfile -File ./contextsearch-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
