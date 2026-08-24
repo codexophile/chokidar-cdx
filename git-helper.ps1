@@ -12,13 +12,16 @@ if (!(Test-Path $InputFile)) {
   exit 1
 }
 
-$RawData = Get-Content $InputFile -Raw
-$JsonData = $RawData | ConvertFrom-Json -AsHashtable
-$JsonDataText = $JsonData | ConvertTo-Json -Depth 100
-$JsonDataText | Set-Content $InputFile -Encoding utf8
+$FileExtension = Split-Path -Path $InputFile -Extension
+if ($FileExtension -eq ".json") {
+  Write-Host "Processing JSON data ..."
+  $RawData = Get-Content $InputFile -Raw
+  $JsonData = $RawData | ConvertFrom-Json -AsHashtable
+  $JsonDataText = $JsonData | ConvertTo-Json -Depth 100
+  $JsonDataText | Set-Content $InputFile -Encoding utf8
+}
 
 $parentPath = Split-Path -Path $InputFile
-
 Push-Location $parentPath
 git add $InputFile
 $diff = git diff --cached --quiet
