@@ -1,15 +1,8 @@
 rules:
   - name: ContextSearch-ext-backup-main
-    enabled: true
     watch:
       path: C:\Users\xq151\Downloads
       pattern: 'ContextSearchOptions_*.json'
-    events: [add, change]
-    debounce: 500
-    conditions:
-      minSizeBytes: 0
-      ignoreInitial: true
-    onError: stop
     actions:
       - type: simple-log
       - type: move
@@ -18,16 +11,9 @@ rules:
         path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
 
   - name: ContextSearch-ext-backup-private
-    enabled: true
     watch:
       path: C:\Users\xq151\Downloads\#w
       pattern: 'ContextSearchOptions_*.json'
-    events: [add, change]
-    debounce: 500
-    conditions:
-      minSizeBytes: 0
-      ignoreInitial: true
-    onError: stop
     actions:
       - type: simple-log
       - type: move

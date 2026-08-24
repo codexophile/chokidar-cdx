@@ -49,6 +49,23 @@ function required(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function applyRuleDefaults(config) {
+  if (!config || !Array.isArray(config.rules)) return config;
+  for (const rule of config.rules) {
+    if (!rule || typeof rule !== 'object') continue;
+    rule.enabled ??= true;
+    rule.events ??= ['add', 'change'];
+    rule.debounce ??= 500;
+    rule.conditions = {
+      minSizeBytes: 0,
+      ignoreInitial: true,
+      ...(rule.conditions ?? {}),
+    };
+    rule.onError ??= 'stop';
+  }
+  return config;
+}
+
 function validateRules(config) {
   required(
     config && Array.isArray(config.rules),
@@ -70,7 +87,7 @@ function validateRules(config) {
     );
     required(
       Array.isArray(rule.events) && rule.events.length > 0,
-      `Rule ${rule.name} needs explicit events`,
+      `Rule ${rule.name} needs events`,
     );
     required(
       rule.events.every(event => supportedEvents.has(event)),
@@ -315,7 +332,7 @@ function scheduleRule(rule, event, filePath) {
 
 async function main() {
   const { readFile } = await import('fs/promises');
-  const rules = parse(await readFile(configPath, 'utf8'));
+  const rules = applyRuleDefaults(parse(await readFile(configPath, 'utf8')));
   validateRules(rules);
   const activeRules = rules.rules.filter(rule => rule.enabled !== false);
   required(activeRules.length > 0, 'Config contains no enabled rules');
