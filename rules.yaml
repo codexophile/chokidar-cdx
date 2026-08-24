@@ -15,7 +15,7 @@ rules:
       - type: move
         destination: C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
       - type: script
-        path: pwsh -NoProfile -File ./contextsearch-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
+        path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua01/contextsearch-backup-latest.json
 
   - name: ContextSearch-ext-backup-private
     enabled: true
@@ -33,4 +33,4 @@ rules:
       - type: move
         destination: C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
       - type: script
-        path: pwsh -NoProfile -File ./contextsearch-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
+        path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
