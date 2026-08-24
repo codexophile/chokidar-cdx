@@ -1,4 +1,15 @@
 rules:
+  - name: aw-category-export
+    watch:
+      path: C:\Users\xq151\Downloads
+      pattern: 'aw-category-export*.json'
+    actions:
+      - type: simple-log
+      - type: move
+        destination: C:/mega/Backups/aw-category-export/{{filename}}
+      - type: script
+        path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/aw-category-export/{{filename}}
+
   - name: ContextSearch-ext-backup-main
     watch:
       path: C:\Users\xq151\Downloads
