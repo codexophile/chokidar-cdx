@@ -9,7 +9,7 @@ rules:
     actions:
       - type: simple-log
       - type: script
-        path: pwsh -NoProfile -Command Set-Clipboard -Value "'{{filename}}'"
+        path: pwsh -NoProfile -Command Set-Clipboard -Value "'{{filepath}}'"
 
   - name: aw-category-export
     watch:
