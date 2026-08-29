@@ -1,4 +1,16 @@
 rules:
+  - name: any
+    watch:
+      path: C:\Users\xq151\Downloads
+      pattern: '*'
+      exclude:
+        - '*.tmp'
+        - '*.crdownload'
+    actions:
+      - type: simple-log
+      - type: script
+        path: pwsh -NoProfile -Command Set-Clipboard -Value "'{{filename}}'"
+
   - name: aw-category-export
     watch:
       path: C:\Users\xq151\Downloads

@@ -4,7 +4,7 @@ import { appendFile, copyFile, mkdir, rename, stat } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { parse } from 'yaml';
 import picomatch from 'picomatch';
 import { stdout } from 'process';
@@ -66,6 +66,24 @@ function applyRuleDefaults(config) {
   return config;
 }
 
+function coercePatternList(value) {
+  if (value === undefined || value === null) return [];
+  if (Array.isArray(value)) return value;
+  return [value];
+}
+
+function getRuleExcludePatterns(rule) {
+  const watchExclude = coercePatternList(
+    rule.watch?.exclude ??
+      rule.watch?.excludePatterns ??
+      rule.watch?.excludePattern,
+  );
+  const ruleExclude = coercePatternList(
+    rule.exclude ?? rule.excludePatterns ?? rule.excludePattern,
+  );
+  return [...watchExclude, ...ruleExclude];
+}
+
 function validateRules(config) {
   required(
     config && Array.isArray(config.rules),
@@ -84,6 +102,18 @@ function validateRules(config) {
         rule.watch.subfolders === true ||
         (Number.isInteger(rule.watch.subfolders) && rule.watch.subfolders >= 0),
       `Rule ${rule.name} has invalid watch.subfolders; use false, true, or a nonnegative integer`,
+    );
+    const excludePatterns = getRuleExcludePatterns(rule);
+    required(
+      excludePatterns.every(
+        pattern =>
+          typeof pattern === 'string' ||
+          (pattern &&
+            typeof pattern === 'object' &&
+            pattern.type === 'regex' &&
+            typeof pattern.value === 'string'),
+      ),
+      `Rule ${rule.name} has invalid exclude patterns`,
     );
     required(
       Array.isArray(rule.events) && rule.events.length > 0,
@@ -106,6 +136,10 @@ function validateRules(config) {
   }
 }
 
+function normalizeMatchPath(value) {
+  return String(value ?? '').replace(/\\/g, '/');
+}
+
 function template(value, context) {
   if (typeof value !== 'string') return value;
   return value.replace(/{{\s*([\w.]+)\s*}}/g, (_, key) =>
@@ -126,18 +160,31 @@ function resolveObject(value, context) {
   return template(value, context);
 }
 
-function matchesPattern(filePath, rule) {
+export function matchesPattern(filePath, rule) {
   const pattern = rule.watch.pattern;
-  if (typeof pattern === 'object' && pattern.type === 'regex')
-    return new RegExp(pattern.value).test(path.basename(filePath));
-  const relativePath = path
-    .relative(path.resolve(rule.watch.path), filePath)
-    .split(path.sep)
-    .join('/');
-  return (
-    picomatch(pattern)(relativePath) ||
-    picomatch(pattern)(path.basename(filePath))
-  );
+  const normalizedFilePath = normalizeMatchPath(filePath);
+  const normalizedWatchPath = normalizeMatchPath(path.resolve(rule.watch.path));
+  const relativePath = normalizedFilePath.startsWith(`${normalizedWatchPath}/`)
+    ? normalizedFilePath.slice(normalizedWatchPath.length + 1)
+    : path.basename(normalizedFilePath);
+  const fileName = path.basename(normalizedFilePath);
+
+  const matchesPositivePattern =
+    typeof pattern === 'object' && pattern.type === 'regex'
+      ? new RegExp(pattern.value).test(fileName)
+      : picomatch(pattern)(relativePath) || picomatch(pattern)(fileName);
+
+  if (!matchesPositivePattern) return false;
+
+  const excludePatterns = getRuleExcludePatterns(rule);
+  return !excludePatterns.some(excludePattern => {
+    if (typeof excludePattern === 'object' && excludePattern.type === 'regex')
+      return new RegExp(excludePattern.value).test(fileName);
+    return (
+      picomatch(excludePattern)(relativePath) ||
+      picomatch(excludePattern)(fileName)
+    );
+  });
 }
 
 function runProcess(command, commandArgs, options = {}) {
@@ -171,7 +218,11 @@ function runProcess(command, commandArgs, options = {}) {
   });
 }
 
-async function executeAction(action, context, options) {
+export async function executeAction(action, context, options) {
+  if (options?.rule && !matchesPattern(context.filepath, options.rule)) {
+    return;
+  }
+
   const resolved = resolveObject(action, context);
   const type = resolved.type;
   if (options.dryRun) {
@@ -270,6 +321,7 @@ async function executeStep(step, context, options) {
 }
 
 async function runRule(rule, event, filePath) {
+  if (!matchesPattern(filePath, rule)) return;
   const fileInfo = await stat(filePath).catch(() => null);
   if (
     rule.conditions?.minSizeBytes &&
@@ -330,7 +382,7 @@ function scheduleRule(rule, event, filePath) {
   );
 }
 
-async function main() {
+export async function main() {
   const { readFile } = await import('fs/promises');
   const rules = applyRuleDefaults(parse(await readFile(configPath, 'utf8')));
   validateRules(rules);
@@ -356,7 +408,12 @@ async function main() {
   log('rules engine started', { configPath, dryRun });
 }
 
-main().catch(error => {
-  log('rules engine stopped', { error: error.message });
-  process.exitCode = 1;
-});
+const isDirectExecution =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
+  main().catch(error => {
+    log('rules engine stopped', { error: error.message });
+    process.exitCode = 1;
+  });
+}
