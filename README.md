@@ -70,7 +70,7 @@ rules:
 | `enabled`                  | No       | Set to `false` to disable a rule. Defaults to enabled. At least one rule must be enabled.                                                                     |
 | `watch.path`               | Yes      | Directory or path passed to Chokidar. Relative paths are resolved from the process working directory.                                                         |
 | `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to `watch.path` and the file name.                                                    |
-| `watch.exclude`            | No       | One or more glob strings or regex objects to skip matching files. Exclusions are evaluated after a positive `watch.pattern` match.                           |
+| `watch.exclude`            | No       | One or more glob strings or regex objects to skip matching files. Exclusions are evaluated after a positive `watch.pattern` match.                            |
 | `watch.subfolders`         | No       | Defaults to `false`, so only the watched directory is monitored. Set to `true` for all nested directories, or use a nonnegative integer for a specific depth. |
 | `events`                   | No       | One or more of `add`, `change`, `unlink`, `addDir`, or `unlinkDir`. Defaults to `[add, change]`.                                                              |
 | `debounce`                 | No       | Delay in milliseconds before the matching rule runs. A later event for the same rule and path resets the timer. Defaults to `500`.                            |
@@ -108,8 +108,7 @@ watch:
   exclude:
     - '**/drafts/**'
     - '*.tmp.json'
-    -
-      type: regex
+    - type: regex
       value: '^archive-.*\\.json$'
 ```
 
