@@ -43,3 +43,14 @@ rules:
         destination: C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
       - type: script
         path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/contextSearch-ua02/contextsearch-backup-latest.json
+
+  - name: nomie-backup
+    watch:
+      path: C:\Users\xq151\Downloads
+      pattern: ndn*.json
+    actions:
+      - type: simple-log
+      - type: move
+        destination: C:/mega/Backups/nomie/nomie-backup-latest.json
+      - type: script
+        path: pwsh -NoProfile -File ./git-helper.ps1 -InputFile C:/mega/Backups/nomie/nomie-backup-latest.json
