@@ -21,6 +21,8 @@ const supportedEvents = new Set([
   'unlinkDir',
 ]);
 const debounceTimers = new Map();
+const watcherRestartInitialDelayMs = 1000;
+const watcherRestartMaxDelayMs = 30000;
 
 const args = new Set(process.argv.slice(2));
 const configIndex = process.argv.indexOf('--config');
@@ -138,6 +140,10 @@ function validateRules(config) {
 
 function normalizeMatchPath(value) {
   return String(value ?? '').replace(/\\/g, '/');
+}
+
+export function isTemporaryWatchPath(filePath) {
+  return normalizeMatchPath(filePath).toLowerCase().endsWith('.~tmp');
 }
 
 function template(value, context) {
@@ -382,29 +388,67 @@ function scheduleRule(rule, event, filePath) {
   );
 }
 
+function watchRule(rule) {
+  const watchPath = path.resolve(rule.watch.path);
+  const subfolders = rule.watch.subfolders ?? false;
+  let watcher;
+  let restartTimer;
+  let restartDelayMs = watcherRestartInitialDelayMs;
+
+  const start = () => {
+    watcher = chokidar.watch(watchPath, {
+      ignoreInitial: rule.conditions?.ignoreInitial !== false,
+      depth: subfolders === true ? undefined : subfolders,
+      ignored: isTemporaryWatchPath,
+    });
+    for (const event of rule.events)
+      watcher.on(event, filePath => scheduleRule(rule, event, filePath));
+    watcher.on('ready', () => {
+      restartDelayMs = watcherRestartInitialDelayMs;
+    });
+    watcher.on('error', error => {
+      log('watcher error; restarting', {
+        rule: rule.name,
+        watchPath,
+        error: error.message,
+        restartInMs: restartDelayMs,
+      });
+      if (restartTimer) return;
+      const failedWatcher = watcher;
+      const delay = restartDelayMs;
+      restartDelayMs = Math.min(restartDelayMs * 2, watcherRestartMaxDelayMs);
+      restartTimer = setTimeout(async () => {
+        restartTimer = undefined;
+        await failedWatcher.close().catch(closeError =>
+          log('watcher close failed', {
+            rule: rule.name,
+            watchPath,
+            error: closeError.message,
+          }),
+        );
+        start();
+        log('watcher restarted', { rule: rule.name, watchPath });
+      }, delay);
+    });
+  };
+
+  start();
+  log('watching rule', {
+    rule: rule.name,
+    watchPath,
+    pattern: rule.watch.pattern,
+    subfolders,
+    events: rule.events,
+  });
+}
+
 export async function main() {
   const { readFile } = await import('fs/promises');
   const rules = applyRuleDefaults(parse(await readFile(configPath, 'utf8')));
   validateRules(rules);
   const activeRules = rules.rules.filter(rule => rule.enabled !== false);
   required(activeRules.length > 0, 'Config contains no enabled rules');
-  for (const rule of activeRules) {
-    const watchPath = path.resolve(rule.watch.path);
-    const subfolders = rule.watch.subfolders ?? false;
-    const watcher = chokidar.watch(watchPath, {
-      ignoreInitial: rule.conditions?.ignoreInitial !== false,
-      depth: subfolders === true ? undefined : subfolders,
-    });
-    for (const event of rule.events)
-      watcher.on(event, filePath => scheduleRule(rule, event, filePath));
-    log('watching rule', {
-      rule: rule.name,
-      watchPath,
-      pattern: rule.watch.pattern,
-      subfolders,
-      events: rule.events,
-    });
-  }
+  for (const rule of activeRules) watchRule(rule);
   log('rules engine started', { configPath, dryRun });
 }
 

@@ -319,6 +319,8 @@ onError:
 
 Retries apply to the whole action step, including every child of a `parallel` step. A condition that does not match is a skip, not an error.
 
+The watcher ignores editor temporary files ending in `.~tmp`. If the operating system reports a watcher error such as `EBUSY`, the affected rule is logged and its watcher is recreated automatically with a capped backoff. The process remains running while the file or directory becomes available again.
+
 ## Logging and troubleshooting
 
 Every log entry is a JSON object on one line. Entries include an ISO `timestamp`, a `message`, and event-specific fields such as `rule`, `filePath`, `event`, `attempt`, or `error`. The log file is `chokidar-cdx.log` beside the script, while console output is also emitted.

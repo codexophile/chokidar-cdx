@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { executeAction, matchesPattern } from '../chokidar-cdx.js';
+import {
+  executeAction,
+  isTemporaryWatchPath,
+  matchesPattern,
+} from '../chokidar-cdx.js';
+
+test('editor temporary files are excluded from the watcher', () => {
+  assert.equal(isTemporaryWatchPath('C:/Downloads/fruit_.png.~tmp'), true);
+  assert.equal(isTemporaryWatchPath('C:/Downloads/fruit.png'), false);
+});
 
 test('exclude patterns prevent matches', () => {
   const rule = {
