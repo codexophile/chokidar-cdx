@@ -19,6 +19,7 @@ const supportedEvents = new Set([
   'unlink',
   'addDir',
   'unlinkDir',
+  'rename',
 ]);
 const debounceTimers = new Map();
 const watcherRestartInitialDelayMs = 1000;
@@ -326,11 +327,12 @@ async function executeStep(step, context, options) {
   await executeAction(step, context, options);
 }
 
-async function runRule(rule, event, filePath) {
+async function runRule(rule, event, filePath, additionalContext = {}) {
   if (!matchesPattern(filePath, rule)) return;
   const fileInfo = await stat(filePath).catch(() => null);
   if (
     rule.conditions?.minSizeBytes &&
+    !['unlink', 'unlinkDir'].includes(event) &&
     (!fileInfo || fileInfo.size < rule.conditions.minSizeBytes)
   )
     return;
@@ -340,6 +342,7 @@ async function runRule(rule, event, filePath) {
     dirname: path.dirname(filePath),
     event,
     timestamp: new Date().toISOString(),
+    ...additionalContext,
   };
   const retry = typeof rule.onError === 'object' ? rule.onError.retry : null;
   const attempts = rule.onError === 'retry' || retry ? retry?.attempts || 3 : 1;
@@ -370,7 +373,7 @@ async function runRule(rule, event, filePath) {
   log('rule completed', { rule: rule.name, event, filePath });
 }
 
-function scheduleRule(rule, event, filePath) {
+function scheduleRule(rule, event, filePath, additionalContext = {}) {
   if (
     !rule.enabled ||
     !rule.events.includes(event) ||
@@ -383,7 +386,7 @@ function scheduleRule(rule, event, filePath) {
     key,
     setTimeout(() => {
       debounceTimers.delete(key);
-      runRule(rule, event, path.resolve(filePath));
+      runRule(rule, event, path.resolve(filePath), additionalContext);
     }, rule.debounce || 0),
   );
 }
@@ -394,6 +397,39 @@ function watchRule(rule) {
   let watcher;
   let restartTimer;
   let restartDelayMs = watcherRestartInitialDelayMs;
+  const pendingUnlinks = new Map();
+  const renamePairWindowMs = Math.max(rule.debounce || 0, 100);
+
+  const scheduleUnlink = filePath => {
+    const resolvedPath = path.resolve(filePath);
+    const timer = setTimeout(() => {
+      pendingUnlinks.delete(resolvedPath);
+      if (rule.events.includes('unlink'))
+        scheduleRule(rule, 'unlink', resolvedPath);
+    }, renamePairWindowMs);
+    pendingUnlinks.set(resolvedPath, timer);
+  };
+
+  const handleAdd = filePath => {
+    const resolvedPath = path.resolve(filePath);
+    const candidate = [...pendingUnlinks.keys()].find(
+      oldPath =>
+        path.dirname(oldPath) === path.dirname(resolvedPath) &&
+        matchesPattern(oldPath, rule) &&
+        matchesPattern(resolvedPath, rule),
+    );
+    if (candidate) {
+      clearTimeout(pendingUnlinks.get(candidate));
+      pendingUnlinks.delete(candidate);
+      if (rule.events.includes('rename'))
+        scheduleRule(rule, 'rename', resolvedPath, {
+          oldFilepath: candidate,
+          oldFilename: path.basename(candidate),
+        });
+      return;
+    }
+    if (rule.events.includes('add')) scheduleRule(rule, 'add', resolvedPath);
+  };
 
   const start = () => {
     watcher = chokidar.watch(watchPath, {
@@ -401,8 +437,25 @@ function watchRule(rule) {
       depth: subfolders === true ? undefined : subfolders,
       ignored: isTemporaryWatchPath,
     });
-    for (const event of rule.events)
-      watcher.on(event, filePath => scheduleRule(rule, event, filePath));
+    const watcherEvents = new Set(
+      rule.events.includes('rename')
+        ? [...rule.events, 'add', 'unlink']
+        : rule.events,
+    );
+    for (const event of watcherEvents) {
+      if (event === 'rename') continue;
+      watcher.on(event, filePath => {
+        if (event === 'unlink') {
+          if (rule.events.includes('rename')) scheduleUnlink(filePath);
+          else scheduleRule(rule, event, filePath);
+        } else if (event === 'add') {
+          if (rule.events.includes('rename')) handleAdd(filePath);
+          else scheduleRule(rule, event, filePath);
+        } else {
+          scheduleRule(rule, event, filePath);
+        }
+      });
+    }
     watcher.on('ready', () => {
       restartDelayMs = watcherRestartInitialDelayMs;
     });

@@ -1,5 +1,18 @@
 rules:
-  - name: any
+  - name: tv-and-movie-files-deleted
+    watch:
+      path: C:\media
+      pattern: '**/*'
+      exclude:
+        - '*.!qB'
+      subfolders: true
+    events: [unlink]
+    actions:
+      - type: simple-log
+      - type: script
+        path: pwsh -NoProfile -File ./file-actions.ps1 -InputFile "{{filepath}}" -Operation Delete
+
+  - name: any-download
     watch:
       path: C:\Users\xq151\Downloads
       pattern: '*'

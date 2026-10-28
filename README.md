@@ -72,7 +72,7 @@ rules:
 | `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to `watch.path` and the file name.                                                    |
 | `watch.exclude`            | No       | One or more glob strings or regex objects to skip matching files. Exclusions are evaluated after a positive `watch.pattern` match.                            |
 | `watch.subfolders`         | No       | Defaults to `false`, so only the watched directory is monitored. Set to `true` for all nested directories, or use a nonnegative integer for a specific depth. |
-| `events`                   | No       | One or more of `add`, `change`, `unlink`, `addDir`, or `unlinkDir`. Defaults to `[add, change]`.                                                              |
+| `events`                   | No       | One or more of `add`, `change`, `unlink`, `addDir`, `unlinkDir`, or `rename`. Defaults to `[add, change]`. `rename` pairs an `unlink` and a subsequent `add` in the same directory. |
 | `debounce`                 | No       | Delay in milliseconds before the matching rule runs. A later event for the same rule and path resets the timer. Defaults to `500`.                            |
 | `conditions.minSizeBytes`  | No       | Skip the rule unless the current file is at least this many bytes. Defaults to `0`; this is most useful for `add` and `change` events.                        |
 | `conditions.ignoreInitial` | No       | Defaults to `true`, so existing files do not trigger events at startup. Set to `false` to process initial files.                                              |
@@ -124,6 +124,8 @@ String values can contain `{{placeholder}}` templates. The available context is:
 | `{{filename}}`        | File name including its extension.                              |
 | `{{dirname}}`         | Absolute parent directory.                                      |
 | `{{event}}`           | Chokidar event name.                                            |
+| `{{oldFilepath}}`  | Previous absolute path for a `rename` event.                    |
+| `{{oldFilename}}`  | Previous file name for a `rename` event.                         |
 | `{{timestamp}}`       | ISO timestamp captured when the rule starts.                    |
 | `{{destinationPath}}` | Destination set by a completed `copy` or `move` action.         |
 | `{{stdout}}`          | Standard output from the most recent `exec` or `script` action. |
@@ -169,6 +171,43 @@ Run a shell command. The command runs with the watcher project directory as its 
 ```
 
 A non-zero exit code is an action failure and follows the rule's `onError` policy.
+
+### Delete and rename events
+
+Use `unlink` for a deleted file and `unlinkDir` for a deleted directory. Deleted paths
+are still delivered to actions even when `conditions.minSizeBytes` is configured, but
+file actions such as `copy` and `move` cannot operate after the source has been deleted.
+
+Use `rename` when a rule should run once for a file rename instead of separately for
+Chokidar's underlying `unlink` and `add` events. The watcher pairs an `unlink` followed
+by an `add` in the same directory during the rule's debounce window. A rename rule
+requires both the old and new paths to match the rule's pattern and provides
+`{{oldFilepath}}` and `{{oldFilename}}` in addition to the normal new-path context.
+
+```yaml
+rules:
+  - name: log-deletes
+    watch:
+      path: ./incoming
+      pattern: '**/*'
+    events: [unlink]
+    actions:
+      - type: notify
+        message: 'Deleted {{filepath}}'
+
+  - name: report-renames
+    watch:
+      path: ./incoming
+      pattern: '**/*.csv'
+    events: [rename]
+    actions:
+      - type: http
+        url: 'http://localhost:3000/hooks/files'
+        body:
+          event: '{{event}}'
+          oldPath: '{{oldFilepath}}'
+          newPath: '{{filepath}}'
+```
 
 ### `script`
 
