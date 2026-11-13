@@ -3,9 +3,11 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$InputFile,
   [Parameter(Mandatory = $true)]
-  [Alias("Action")]
-  [ValidateSet("Rename", "Delete")]
-  [string]$Operation
+  [Alias('Action')]
+  [ValidateSet('Rename', 'Delete')]
+  [string]$Operation,
+  [ValidateSet('Self', 'Siblings')]
+  [string]$ActOnWhom 
 )
   
 . C:\mega\IDEs\powershell\#lib\functions.ps1
@@ -16,15 +18,30 @@ if (!(Test-Path (Split-Path -Parent $InputFile) -PathType Container)) {
   exit 1
 }
 
-$SiblingFiles = Get-SiblingFiles -Path $InputFile
-foreach ($SiblingFile in $SiblingFiles) {
-  Write-Host "Processing sibling file: $SiblingFile"
-  if ($Operation -eq "Rename") {
-    $NewFileName = Rename-File -FilePath $SiblingFile
-    Write-Host "Renamed $SiblingFile to $NewFileName"
+if ($ActOnWhom -eq 'Self') {
+  $FilesToProcess = @($InputFile)
+}
+elseif ($ActOnWhom -eq 'Siblings') {
+  $FilesToProcess = Get-SiblingFiles -Path $InputFile
+  if ($FilesToProcess.Count -eq 0) {
+    Write-Host "No sibling files found for: $InputFile"
+    exit 1
   }
-  elseif ($Operation -eq "Delete") {
-    Move-ToRecycleBin -Path $SiblingFile
-    Write-Host "Moved sibling file to Recycle Bin: $SiblingFile"
+}
+
+foreach ($File in $FilesToProcess) {
+  Write-Host "Processing file: $File"
+  if ($Operation -eq 'Rename') {
+    $NewFileName = Rename-File -FilePath $File
+    Write-Host "Renamed $File to $NewFileName"
+  }
+  elseif ($Operation -eq 'Delete') {
+    Move-ToRecycleBin -Path $File -ErrorAction Stop
+    if ($?) {
+      Write-Host "Moved file to Recycle Bin: $File"
+    }
+    else {
+      Write-Host "Failed to move file to Recycle Bin: $File"
+    }
   }
 }

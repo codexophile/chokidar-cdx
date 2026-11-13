@@ -1,7 +1,9 @@
 rules:
   - name: tv-and-movie-files-deleted
     watch:
-      path: C:\media
+      path:
+        - C:\media\movies
+        - C:\media\tv
       pattern: '**/*'
       exclude:
         - '*.!qB'
@@ -10,11 +12,12 @@ rules:
     actions:
       - type: simple-log
       - type: script
-        path: pwsh -NoProfile -File ./file-actions.ps1 -InputFile "{{filepath}}" -Operation Delete
+        path: pwsh -NoProfile -File ./file-actions.ps1 -InputFile "{{filepath}}" -Operation Delete -ActOnWhom Siblings
 
   - name: any-download
     watch:
-      path: C:\Users\xq151\Downloads
+      path:
+        - C:\Users\xq151\Downloads
       pattern: '*'
       exclude:
         - '*.tmp'

@@ -26,6 +26,19 @@ test('exclude patterns prevent matches', () => {
   assert.equal(matchesPattern('C:/tmp/watch/readme.bak', rule), false);
 });
 
+test('one rule can match files from multiple watch paths', () => {
+  const rule = {
+    watch: {
+      path: ['C:/tmp/incoming', 'C:/tmp/archive'],
+      pattern: '**/*.json',
+    },
+  };
+
+  assert.equal(matchesPattern('C:/tmp/incoming/report.json', rule), true);
+  assert.equal(matchesPattern('C:/tmp/archive/report.json', rule), true);
+  assert.equal(matchesPattern('C:/tmp/incoming/report.txt', rule), false);
+});
+
 test('download temp files are excluded before script actions run', () => {
   const rule = {
     watch: {

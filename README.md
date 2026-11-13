@@ -68,8 +68,8 @@ rules:
 | -------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                     | Yes      | Unique, descriptive name used in logs and debounce keys.                                                                                                      |
 | `enabled`                  | No       | Set to `false` to disable a rule. Defaults to enabled. At least one rule must be enabled.                                                                     |
-| `watch.path`               | Yes      | Directory or path passed to Chokidar. Relative paths are resolved from the process working directory.                                                         |
-| `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to `watch.path` and the file name.                                                    |
+| `watch.path`               | Yes      | Directory or path, or an array of paths, passed to Chokidar. Relative paths are resolved from the process working directory.                                    |
+| `watch.pattern`            | Yes      | A glob string or a regex object. Matching checks both the path relative to the matching `watch.path` and the file name.                                          |
 | `watch.exclude`            | No       | One or more glob strings or regex objects to skip matching files. Exclusions are evaluated after a positive `watch.pattern` match.                            |
 | `watch.subfolders`         | No       | Defaults to `false`, so only the watched directory is monitored. Set to `true` for all nested directories, or use a nonnegative integer for a specific depth. |
 | `events`                   | No       | One or more of `add`, `change`, `unlink`, `addDir`, `unlinkDir`, or `rename`. Defaults to `[add, change]`. `rename` pairs an `unlink` and a subsequent `add` in the same directory. |
@@ -89,6 +89,24 @@ watch:
     value: '^report-\\d{4}-\\d{2}\\.csv$'
   subfolders: false
 ```
+
+Use an array when the same pattern and actions should apply to multiple paths. Each path is watched by the same rule, and matching uses the path relative to whichever configured path received the event:
+
+```yaml
+rules:
+  - name: archive-reports-from-multiple-folders
+    watch:
+      path:
+        - ./incoming
+        - ./partner-incoming
+      pattern: '**/*.json'
+      subfolders: true
+    actions:
+      - type: copy
+        destination: './archive/{{filename}}'
+```
+
+The scalar form remains supported for rules that watch one path.
 
 To monitor nested directories, use `subfolders: true` for unlimited depth or `subfolders: 1` to include files one directory below the watched path:
 

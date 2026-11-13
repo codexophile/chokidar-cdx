@@ -75,6 +75,19 @@ function coercePatternList(value) {
   return [value];
 }
 
+/**
+ * Returns the configured watch paths in a consistent array form.
+ *
+ * @param {Object} rule Rule containing the watch configuration.
+ * @returns {string[]} Configured watch paths.
+ * @example
+ * getRuleWatchPaths({ watch: { path: './incoming' } });
+ * // ['./incoming']
+ */
+function getRuleWatchPaths(rule) {
+  return coercePatternList(rule.watch?.path);
+}
+
 function getRuleExcludePatterns(rule) {
   const watchExclude = coercePatternList(
     rule.watch?.exclude ??
@@ -97,7 +110,12 @@ function validateRules(config) {
       rule && typeof rule.name === 'string' && rule.name.length > 0,
       `Rule ${index} needs a name`,
     );
-    required(rule.watch?.path, `Rule ${rule.name} needs watch.path`);
+    const watchPaths = getRuleWatchPaths(rule);
+    required(
+      watchPaths.length > 0 &&
+        watchPaths.every(watchPath => typeof watchPath === 'string' && watchPath),
+      `Rule ${rule.name} needs one or more watch.path values`,
+    );
     required(rule.watch?.pattern, `Rule ${rule.name} needs watch.pattern`);
     required(
       rule.watch?.subfolders === undefined ||
@@ -167,12 +185,31 @@ function resolveObject(value, context) {
   return template(value, context);
 }
 
+/**
+ * Tests a file path against a rule's positive and exclusion patterns.
+ *
+ * @param {string} filePath Candidate file path.
+ * @param {Object} rule Rule containing one or more watch paths and patterns.
+ * @returns {boolean} Whether the file matches the rule.
+ * @example
+ * matchesPattern('C:/incoming/report.json', {
+ *   watch: { path: ['C:/incoming', 'C:/archive'], pattern: '*.json' },
+ * });
+ * // true
+ */
 export function matchesPattern(filePath, rule) {
   const pattern = rule.watch.pattern;
   const normalizedFilePath = normalizeMatchPath(filePath);
-  const normalizedWatchPath = normalizeMatchPath(path.resolve(rule.watch.path));
-  const relativePath = normalizedFilePath.startsWith(`${normalizedWatchPath}/`)
-    ? normalizedFilePath.slice(normalizedWatchPath.length + 1)
+  const normalizedWatchPaths = getRuleWatchPaths(rule)
+    .map(watchPath => normalizeMatchPath(path.resolve(watchPath)))
+    .sort((left, right) => right.length - left.length);
+  const matchingWatchPath = normalizedWatchPaths.find(
+    watchPath =>
+      normalizedFilePath === watchPath ||
+      normalizedFilePath.startsWith(`${watchPath}/`),
+  );
+  const relativePath = matchingWatchPath
+    ? normalizedFilePath.slice(matchingWatchPath.length).replace(/^\//, '')
     : path.basename(normalizedFilePath);
   const fileName = path.basename(normalizedFilePath);
 
@@ -280,7 +317,9 @@ export async function executeAction(action, context, options) {
       -----------
       Rule name    : ${options.rule.name}
       Trigger      : ${context.event}
-      Watch folder : ${path.resolve(options.rule.watch.path)}
+      Watch folder : ${getRuleWatchPaths(options.rule)
+        .map(watchPath => path.resolve(watchPath))
+        .join(', ')}
       File name    : ${context.filename}
     `);
   } else if (type === 'http') {
@@ -392,7 +431,9 @@ function scheduleRule(rule, event, filePath, additionalContext = {}) {
 }
 
 function watchRule(rule) {
-  const watchPath = path.resolve(rule.watch.path);
+  const watchPaths = getRuleWatchPaths(rule).map(watchPath =>
+    path.resolve(watchPath),
+  );
   const subfolders = rule.watch.subfolders ?? false;
   let watcher;
   let restartTimer;
@@ -432,7 +473,7 @@ function watchRule(rule) {
   };
 
   const start = () => {
-    watcher = chokidar.watch(watchPath, {
+    watcher = chokidar.watch(watchPaths, {
       ignoreInitial: rule.conditions?.ignoreInitial !== false,
       depth: subfolders === true ? undefined : subfolders,
       ignored: isTemporaryWatchPath,
@@ -462,7 +503,7 @@ function watchRule(rule) {
     watcher.on('error', error => {
       log('watcher error; restarting', {
         rule: rule.name,
-        watchPath,
+        watchPaths,
         error: error.message,
         restartInMs: restartDelayMs,
       });
@@ -475,12 +516,12 @@ function watchRule(rule) {
         await failedWatcher.close().catch(closeError =>
           log('watcher close failed', {
             rule: rule.name,
-            watchPath,
+            watchPaths,
             error: closeError.message,
           }),
         );
         start();
-        log('watcher restarted', { rule: rule.name, watchPath });
+        log('watcher restarted', { rule: rule.name, watchPaths });
       }, delay);
     });
   };
@@ -488,7 +529,7 @@ function watchRule(rule) {
   start();
   log('watching rule', {
     rule: rule.name,
-    watchPath,
+    watchPaths,
     pattern: rule.watch.pattern,
     subfolders,
     events: rule.events,
