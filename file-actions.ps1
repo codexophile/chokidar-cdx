@@ -24,13 +24,17 @@ if ($ActOnWhom -eq 'Self') {
 elseif ($ActOnWhom -eq 'Siblings') {
   $FilesToProcess = Get-SiblingFiles -Path $InputFile
   if ($FilesToProcess.Count -eq 0) {
-    Write-Host "No sibling files found for: $InputFile"
-    exit 1
+    Write-Host "No sibling files remain for: $InputFile"
+    exit 0
   }
 }
 
 foreach ($File in $FilesToProcess) {
   Write-Host "Processing file: $File"
+  if (!(Test-Path -LiteralPath $File -PathType Leaf)) {
+    Write-Host "Skipping missing file: $File"
+    continue
+  }
   if ($Operation -eq 'Rename') {
     $NewFileName = Rename-File -FilePath $File
     Write-Host "Renamed $File to $NewFileName"

@@ -395,6 +395,7 @@ git --version
 - Existing files do not run at startup: set `conditions.ignoreInitial: false`.
 - A file is processed repeatedly: increase `debounce`, narrow the pattern, or avoid watching an output directory that an action writes into.
 - Copy or move fails: check that the source still exists and that the destination is not the same path.
+- A delete rule can receive several simultaneous `unlink` events for related files. If its helper reports that a sibling is missing, treat it as an expected race; the bundled `file-actions.ps1` skips files already removed by another event.
 - Git fails: run the equivalent `git add`, `git commit`, or `git push` manually from the project directory and check repository status, hooks, branch tracking, and credentials.
 - HTTP fails: verify the URL, request body, headers, and that the endpoint returns a 2xx status.
 

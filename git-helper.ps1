@@ -13,12 +13,13 @@ if (!(Test-Path $InputFile)) {
 }
 
 $FileExtension = Split-Path -Path $InputFile -Extension
-if ($FileExtension -eq ".json") {
-  Write-Host "Processing JSON data ..."
+if ($FileExtension -eq '.json') {
+  Write-Host 'Processing JSON data ...'
   $RawData = Get-Content $InputFile -Raw
   $JsonData = $RawData | ConvertFrom-Json -AsHashtable
   $JsonDataText = $JsonData | ConvertTo-Json -Depth 100
   $JsonDataText | Set-Content $InputFile -Encoding utf8
+  Start-Sleep -Seconds 3
 }
 
 $parentPath = Split-Path -Path $InputFile
@@ -29,7 +30,7 @@ $diff
 $hasChanges = $LASTEXITCODE -ne 0
 Write-Host "`nHas changes: $hasChanges`n"
 if ($hasChanges) {
-  $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
   $CommitMessage = "Auto backup: $timestamp"
   Write-Host "Committing with message: $CommitMessage" -ForegroundColor DarkGreen
   git commit -m $CommitMessage
