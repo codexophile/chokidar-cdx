@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [string]$InputFile
+  [string]$InputFile,
+  [string]$MoveToFilePath,
+  [switch]$ProcessJson = $false
 )
-  
+
 . C:\mega\IDEs\powershell\#lib\functions.ps1
 
 Write-Host "Processing file: $InputFile"
@@ -12,19 +14,52 @@ if (!(Test-Path $InputFile)) {
   exit 1
 }
 
-$FileExtension = Split-Path -Path $InputFile -Extension
-if ($FileExtension -eq '.json') {
+$TargetFileContent = $null
+$WorkingFile = $null
+
+# handle -u -nobanner $InputFile
+
+if ($ProcessJson) {
   Write-Host 'Processing JSON data ...'
   $RawData = Get-Content $InputFile -Raw
+  Write-Host "Raw data length: $($RawData.Length)"
   $JsonData = $RawData | ConvertFrom-Json -AsHashtable
-  $JsonDataText = $JsonData | ConvertTo-Json -Depth 100
-  $JsonDataText | Set-Content $InputFile -Encoding utf8
-  Start-Sleep -Seconds 3
+  $TargetFileContent = $JsonData | ConvertTo-Json -Depth 100
 }
 
-$parentPath = Split-Path -Path $InputFile
-Push-Location $parentPath
-git add $InputFile
+if (!$TargetFileContent) {
+  Write-Error 'No content to write to target file. Exiting.'
+  exit 1
+}
+
+if ($MoveToFilePath) {
+  Write-Host "Moving file to: $MoveToFilePath"
+  try {
+    Set-Content -Path $MoveToFilePath -Value $TargetFileContent -Encoding utf8
+  }
+  catch {
+    Write-Error 'Failed to write to'
+    Write-Error $MoveToFilePath
+    Write-Error $_
+    exit 1
+  }
+  $NextLocation = (Split-Path -Path $MoveToFilePath -Parent)
+  $WorkingFile = $MoveToFilePath
+}
+else {
+  $NextLocation = (Split-Path -Path $InputFile -Parent)
+  $WorkingFile = $InputFile
+}
+
+Write-Host "Setting location to: $NextLocation"
+Set-Location -Path $NextLocation
+
+if (!(Test-Path $WorkingFile)) {
+  Write-Error "Working file does not exist: $WorkingFile"
+  exit 1
+}
+
+git add $WorkingFile
 $diff = git diff --cached --quiet
 $diff
 $hasChanges = $LASTEXITCODE -ne 0
